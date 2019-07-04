@@ -3,7 +3,7 @@
 
 import time
 
-from geetest import BaseGeetestCrack
+from v3.geetest import BaseGeetestCrack
 from selenium import webdriver
 
 

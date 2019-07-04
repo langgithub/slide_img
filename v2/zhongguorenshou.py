@@ -1,7 +1,7 @@
 # encoding: utf-8
 """
 --------------------------------------
-@describe 
+@describe 模拟数据包发送
 @version: 1.0
 @project: test
 @file: huakuai.py

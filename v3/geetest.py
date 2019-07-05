@@ -286,4 +286,4 @@ if __name__ == "__main__":
 
     for i in range(50):
         main()
-        print(f"测试结果50次，失败：{error}")
+    print(f"测试结果50次，失败：{error}")

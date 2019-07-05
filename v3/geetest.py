@@ -8,12 +8,22 @@ from PIL import Image, ImageChops
 from selenium.webdriver.common.action_chains import ActionChains
 
 
+class ErrorLog(object):
+
+    def __init__(self, bg, full, diff, offset):
+        self.bg = bg
+        self.full = full
+        self.diff = diff
+        self.offset = offset
+
+
 class BaseGeetestCrack(metaclass=ABCMeta):
     """验证码破解基础类"""
 
     def __init__(self, driver):
         self.driver = driver
         self.driver.maximize_window()
+        self.error:ErrorLog = None
 
     def get_decode_image(self, filename, location_list):
         """
@@ -117,16 +127,26 @@ class BaseGeetestCrack(metaclass=ABCMeta):
 
         left = 43
 
-        for w in range(left, diff.size[0]):
+        # for w in range(left, diff.size[0]):
+        #     lis = []
+        #     for h in range(diff.size[1]):
+        #         if diff.load()[w, h] == 1:
+        #             lis.append(w)
+        #         if len(lis) > 5:
+        #             self.error = ErrorLog(img1, img2, diff, w)
+        #             return w
+        for w in range(diff.size[0]-1,left,-1):
             lis = []
-            for h in range(diff.size[1]):
+            for h in range(diff.size[1]-1,0,-1):
                 if diff.load()[w, h] == 1:
                     lis.append(w)
                 if len(lis) > 5:
-                    return w
+                    self.error = ErrorLog(img1, img2, diff, w)
+                    return w-left
+
 
     # 测试获取阀值 https://www.jianshu.com/p/c7fb9be02412
-    def otsu_threshold(self,im):
+    def otsu_threshold(self, im):
         """确认阀值的大致范围"""
         width, height = im.size
         pixel_counts = np.zeros(256)
@@ -167,6 +187,7 @@ class BaseGeetestCrack(metaclass=ABCMeta):
 import functools
 import random
 import time
+from v3.logger import logger
 from selenium import webdriver
 
 
@@ -183,13 +204,13 @@ class BTCGeetestCrack(BaseGeetestCrack):
         input_el = self.driver.find_element_by_css_selector(element_class)
         input_el.clear()
         input_el.send_keys(text)
-        time.sleep(1)
+        time.sleep(0.5)
 
     def input_by_pwd(self, text="assbcd123", element_class="input[name='password']"):
         input_el = self.driver.find_element_by_css_selector(element_class)
         input_el.clear()
         input_el.send_keys(text)
-        time.sleep(1)
+        time.sleep(0.5)
 
     def click_by_id(self, element_id="//*[@id=\"root\"]/div[2]/div/div/form/button"):
         search_el = self.driver.find_element_by_xpath(element_id)
@@ -211,6 +232,23 @@ class BTCGeetestCrack(BaseGeetestCrack):
         img2 = self.get_decode_image("bg.png", bimg2)
         return self.compute_gap(img2, img1)
 
+    def check_response(self):
+        """检查是否成功"""
+        js = "return document.getElementsByClassName('geetest_wind')[0].style.display"
+        result = self.driver.execute_script(js)
+        if result == "block":
+            global error
+            # 日志收集
+            t = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time()))
+            img_bg = f"img/{t}_bg.png"
+            img_fullbg = f"img/{t}_fullbg.png"
+            img_diff = f"img/{t}_diff.png"
+            self.error.bg.save(img_bg)
+            self.error.full.save(img_fullbg)
+            self.error.diff.save(img_diff)
+            logger.debug(f"img_bg=>{img_bg} img_fullbg=>{img_fullbg} img_diff=>{img_diff} offset=>{self.error.offset}")
+            error=error+1
+
     def crack(self):
         """执行破解程序
         """
@@ -228,6 +266,8 @@ class BTCGeetestCrack(BaseGeetestCrack):
         print("滑动距离", functools.reduce(lambda x, y: x + y, track))
         self.move_to_gap(track)
         time.sleep(2)
+        self.check_response()
+        self.driver.close()
 
     def grapHtml(self, element_id="gggscpnamebox"):
         content = self.driver.find_element_by_id(element_id)
@@ -241,6 +281,9 @@ def main():
     cracker = BTCGeetestCrack(driver)
     cracker.crack()
 
-
+error=0
 if __name__ == "__main__":
-    main()
+
+    for i in range(50):
+        main()
+        print(f"测试结果50次，失败：{error}")
